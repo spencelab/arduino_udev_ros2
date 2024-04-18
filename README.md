@@ -41,4 +41,7 @@ Ok also - Strawlab has updated theirs for py3 compatibility and has a setup.py. 
 7. But then unplug and plug and no love...
 8. Ok so it doesn't have permissions to create the symlink. So i tried `sudo pip3 install .` of the arduino-python library - that enabled `sudo udevadm test...` to work, and would create the link, but not on plug in.
 9. Side note a simple symlink to /dev/arduino that does not use the python code works. Not sure whether runs as root.
-10. 
+10. Oi vey!!! The problem was that when python runs under udev it has different path than when run (also as root?) from command line. It has limited package paths. So you must install the arduinoudev package to one of the system paths (i think, the method of adding the path to the script seemed terrible). `sudo pip3 install --target /lib/python3/dist-packages/ .` because that path is found during udev.
+11. To troubleshoot this `journalctl -r` was critical. maybe also udevadm log debug.
+12. Further notes are [here](https://github.com/aspence/spencelab/wiki/Udev-Treadmill-Arduino-Rules)
+
