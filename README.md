@@ -34,9 +34,8 @@ Ok also - Strawlab has updated theirs for py3 compatibility and has a setup.py. 
 
 1. `pip3 install .` This puts arduinoudev python library in your python3 site packages or similar.
 2. Change shebang to python3 in arduinoudev.py.
-3. Then install the arduino-udev-name bin script with `sudo cp arduino-udev-name /usr/local/bin`
+3. Then install the arduino-udev-name bin script with `sudo cp arduino-udev-name /usr/bin`
 4. The install the udev rules with `sudo cp udev/99-arduino-udev.rules /usr/lib/udev/rules.d/`
 5. Then test `udevadm test $(udevadm info -q path -n /dev/ttyACM0)`
-6. Hmm getting errors it's missing the /dev when calls the function... i remember a note about this in the code.
-
-`
+6. Hmm the test works. Then `sudo udevadm control --reload-rules`
+7. But then unplug and plug and no love...
