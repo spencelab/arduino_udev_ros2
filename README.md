@@ -46,3 +46,15 @@ Ok also - Strawlab has updated theirs for py3 compatibility and has a setup.py. 
 12. To troubleshoot this `journalctl -r` was critical. maybe also udevadm log debug.
 13. Further notes are [here](https://github.com/aspence/spencelab/wiki/Udev-Treadmill-Arduino-Rules)
 
+Oh wait you dummy...
+```
+spencelab@ros2test:~/strawlab_arduinoudev/arduino-udev$ ll /lib
+lrwxrwxrwx 1 root root 7 Mar 20 11:57 /lib -> usr/lib/
+```
+
+The paths it has when i udev are:
+```
+Apr 18 13:28:40 ros2test systemd-udevd[5098]: ttyACM0: '/usr/bin/arduino-udev-name -w 2 ttyACM0'(out)
+'['/usr/bin', '/lib/python310.zip', '/lib/python3.10',
+'/lib/python3.10/lib-dynload', '/lib/python3/dist-packages']'
+```
