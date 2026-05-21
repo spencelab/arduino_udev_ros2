@@ -1,6 +1,8 @@
 arduino-udev
 ============
-
+TODO:
+1. 5/21/2026: Try the install rules below with the draft code in the testing branch on camdev. If working, commit, for v=13 firmware. Should have complete updated triggerbox system them.
+2. 
 testing udev rules
 ------------------
 
