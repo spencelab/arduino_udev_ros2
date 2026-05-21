@@ -136,3 +136,74 @@ journalctl -r -u systemd-udevd
 One note
 
 Upstream’s setup.py still has older classifiers like Python 3.8, but that does not block install on Ubuntu 24. It is package metadata dust, not runtime doom. The actual runtime code is simple pyserial + bytes handling, which is the important part.
+
+# arduino_udev_ros2 Ubuntu 24 / Python 3 merge notes
+
+This patch imports the minimum useful updates from upstream `strawlab/arduino-udev`
+commit `bf690bb200dd21d75f4c50780e78a3d3eeedc833` while preserving the local
+`README.md` notes in `arduino_udev_ros2`.
+
+## What changed
+
+- `src/arduinoudev.py`
+  - Ported serial protocol code to Python 3 bytes/bytearray handling.
+  - Writes `b"N?"` / `b"N="` instead of Python 2 strings.
+  - Computes CRC over bytes/integers instead of `ord()` on characters.
+  - Returns device names as Python 3 strings.
+  - Keeps the 9600-baud udev/name handshake behavior.
+
+- `bin/arduino-udev-name`
+  - Keeps Python 3 shebang.
+  - Updates formatting/printing to upstream Python 2/3-compatible form.
+  - Works with the updated `arduinoudev.py` return type.
+
+- `setup.py` and `MANIFEST.in`
+  - Adds upstream Python package metadata so the module can be installed cleanly.
+  - Package name remains `arduino-udev`; import name remains `arduinoudev`.
+
+- `udev/99-arduino-udev.rules`
+  - Adds Arduino Uno IDs `2341:0043` and `2a03:0043`.
+  - Keeps FTDI/Nano rules.
+
+- `.gitignore`, `LICENSE.txt`, `AUTHORS.txt`
+  - Adds upstream packaging/release support files.
+
+- `firmware/example2/example2.py`
+  - Python 3 print compatibility update only.
+
+## Suggested Ubuntu 24 install/test
+
+Install pyserial:
+
+```bash
+sudo apt update
+sudo apt install python3-serial
+```
+
+From the repo root, install the module into a system Python path visible to udev:
+
+```bash
+sudo python3 -m pip install --break-system-packages --target /usr/lib/python3/dist-packages .
+```
+
+Install the helper executable and udev rule:
+
+```bash
+sudo install -m 0755 bin/arduino-udev-name /usr/bin/arduino-udev-name
+sudo install -m 0644 udev/99-arduino-udev.rules /etc/udev/rules.d/99-arduino-udev.rules
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+Test manually:
+
+```bash
+arduino-udev-name -w 2 /dev/ttyACM0
+udevadm test $(udevadm info -q path -n /dev/ttyACM0)
+```
+
+If the udev rule does not create the symlink, check:
+
+```bash
+journalctl -r -u systemd-udevd
+```
