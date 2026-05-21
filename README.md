@@ -58,3 +58,81 @@ Apr 18 13:28:40 ros2test systemd-udevd[5098]: ttyACM0: '/usr/bin/arduino-udev-na
 '['/usr/bin', '/lib/python310.zip', '/lib/python3.10',
 '/lib/python3.10/lib-dynload', '/lib/python3/dist-packages']'
 ```
+
+### merge update workflow
+
+Yep, I diffed the two zips and made a minimal “bring in the useful upstream Ubuntu 24/Python 3 bits without nuking your ROS2 notes” patch.
+
+Download the arduino_udev_ros2 Ubuntu 24 patch
+
+It intentionally does not overwrite your README.md, because your local README has hard-won install/debug notes. I added a separate:
+
+MERGE_NOTES_UBUNTU24.md
+What this patch brings in
+
+From upstream Strawlab arduino-udev commit:
+
+bf690bb200dd21d75f4c50780e78a3d3eeedc833
+
+it updates/adds:
+
+src/arduinoudev.py
+bin/arduino-udev-name
+setup.py
+MANIFEST.in
+LICENSE.txt
+AUTHORS.txt
+.gitignore
+udev/99-arduino-udev.rules
+firmware/example2/example2.py
+MERGE_NOTES_UBUNTU24.md
+
+Main useful changes:
+
+Python 3 serial bytes handling
+Python 3-compatible CRC/name protocol
+setup.py package install support
+expanded udev rules for Arduino Uno IDs
+upstream license/authors/package metadata
+
+The biggest real fix is src/arduinoudev.py: your local version still had Python 2 style serial writes like 'N?', ord(c), and print "RAW", while upstream now uses bytes/bytearray correctly for Python 3.
+
+Suggested branch/test flow
+cd ~/ros2_ws/src/arduino_udev_ros2
+
+git status
+git switch -c ubuntu24-python3-upstream-merge
+unzip -o /path/to/arduino_udev_ros2_ubuntu24_patch.zip
+
+git diff
+
+Quick import check:
+
+python3 -m py_compile src/arduinoudev.py
+PYTHONPATH=$PWD/src python3 -c "import arduinoudev; print('ok')"
+
+Install/test on Ubuntu 24:
+
+sudo apt update
+sudo apt install python3-serial python3-pip
+
+sudo python3 -m pip install --break-system-packages \
+  --target /usr/lib/python3/dist-packages .
+
+sudo install -m 0755 bin/arduino-udev-name /usr/bin/arduino-udev-name
+sudo install -m 0644 udev/99-arduino-udev.rules /etc/udev/rules.d/99-arduino-udev.rules
+
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+
+Manual check:
+
+arduino-udev-name -w 2 /dev/ttyACM0
+udevadm test $(udevadm info -q path -n /dev/ttyACM0)
+
+If udev gets grumpy:
+
+journalctl -r -u systemd-udevd
+One note
+
+Upstream’s setup.py still has older classifiers like Python 3.8, but that does not block install on Ubuntu 24. It is package metadata dust, not runtime doom. The actual runtime code is simple pyserial + bytes handling, which is the important part.
