@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 
 from __future__ import print_function
+import sys
 import time
 import serial
 import argparse
 
-from arduinoudev import open_device, get_device_name, set_device_name, reset_device
+from arduinoudev import (
+    open_device,
+    get_device_name,
+    set_device_name,
+    reset_device,
+    NameNotSetError,
+)
 
 if __name__ == "__main__":
     import argparse
@@ -35,19 +42,53 @@ if __name__ == "__main__":
 
     time.sleep(args.wait)
 
-    ser = open_device(port="/dev/%s" % device)
+    # udev matches this script's rules by USB VID/PID (FTDI FT232, genuine
+    # Arduino Uno/Nano) -- a much broader category than "devices running the
+    # triggerbox naming protocol". Any of those match some rule and get this
+    # script run on them as root, synchronously, from udev. Previously any
+    # failure here (no response, garbage response, wrong CRC) propagated as
+    # an uncaught exception; on a desktop session that gets intercepted by
+    # Ubuntu's system-wide apport Python hook and pops a "system program has
+    # experienced an internal error" dialog for what is normal, expected
+    # behavior -- plugging in an Arduino that isn't a triggerbox.
+    #
+    # A device that doesn't speak this protocol is not an error condition:
+    # it just means this udev rule shouldn't apply. Exit non-zero (like any
+    # other failed udev PROGRAM= match) so no symlink gets created, instead
+    # of letting the exception escape.
+    try:
+        ser = open_device(port="/dev/%s" % device)
 
-    if args.reset:
-        reset_device(ser)
+        if args.reset:
+            reset_device(ser)
 
-    time.sleep(5.0)
-    ser.flushInput()
+        time.sleep(5.0)
+        ser.flushInput()
 
-    if args.set_name:
-        set_device_name(ser, args.set_name, verbose=args.verbose)
-        name = args.set_name
-    else:
-        name = get_device_name(ser)
+        if args.set_name:
+            set_device_name(ser, args.set_name, verbose=args.verbose)
+            name = args.set_name
+        else:
+            name = get_device_name(ser)
+
+        ser.close()
+    except (NameNotSetError, ValueError, UnicodeDecodeError, serial.SerialException) as exc:
+        if args.verbose:
+            print(
+                "no triggerbox name detected on %s (%s: %s)"
+                % (device, type(exc).__name__, exc),
+                file=sys.stderr,
+            )
+        sys.exit(1)
+    except Exception as exc:
+        # Belt-and-suspenders: anything else unanticipated should still
+        # exit cleanly rather than crash, for the same reason as above.
+        if args.verbose:
+            print(
+                "arduino-udev-name failed unexpectedly on %s: %s" % (device, exc),
+                file=sys.stderr,
+            )
+        sys.exit(1)
 
     if args.verbose:
         print(
@@ -60,5 +101,3 @@ if __name__ == "__main__":
         )
     else:
         print(name)
-
-    ser.close()
